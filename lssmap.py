@@ -22,12 +22,12 @@ User should define two bi-variate functions, f and J
 
 f(u, s) defines a dynamical system u[i+1] = f(u[i],s) parameterized by s
         inputs:
-        u: size (m,) or size (N,m). It's the state of the m-degree-of-freedom
-           discrete dynamical system
+        u[i]: size (m,) or size (N,m). It's the state of the
+           m-degree-of-freedom discrete dynamical system
         s: parameter of the dynamical system.
            Tangent sensitivity analysis: s must be a scalar.
            Adjoint sensitivity analysis: s may be a scalar or vector.
-        return: du/dt, should be the same size as the state u.
+        return: u[i+1], should be the same size as u[i].
                 if u.shape == (m,): return a shape (m,) array
                 if u.shape == (N,m): return a shape (N,m) array
 
@@ -86,6 +86,8 @@ class ddu(object):
         self.f = f
 
     def __call__(self, u, s):
+        if type(s) is not np.ndarray:
+            s = np.array([s], float)
         f0 = self.f(u, s)
         assert f0.shape[0] == u.shape[0]
         N = f0.shape[0]
@@ -110,6 +112,8 @@ class dds(object):
         self.f = f
 
     def __call__(self, u, s):
+        if type(s) is not np.ndarray:
+            s = np.array([s], float)
         f0 = self.f(u, s)
         assert f0.shape[0] == u.shape[0]
         N = f0.shape[0]
@@ -133,8 +137,8 @@ class LSS(object):
     '''
     def __init__(self, f, u0, s, n0, n, dfdu=None):
         self.f = f
-        self.t = arange(n)
-        self.s = np.array(s).copy()
+        self.t = np.arange(n)
+        self.s = np.array(s, float).copy()
 
         if self.s.ndim == 0:
             self.s = self.s[np.newaxis]
@@ -148,7 +152,7 @@ class LSS(object):
             u0 = self.f(u0, s)
 
         # compute a trajectory
-        self.u = zeros([n, u0.size])
+        self.u = np.zeros([n, u0.size])
         self.u[0] = f(u0, s) 
         for i in xrange(1, n):
             self.u[i] = f(self.u[i-1], s)
@@ -162,11 +166,11 @@ class LSS(object):
         N, m = self.u.shape[0] - 1, self.u.shape[1]
 
         J = self.dfdu(self.u[:-1], self.s)
-        eye = np.eye(m,m)
+        eye = np.eye(m,m) + np.zeros([N,m,m])
     
         L = sparse.bsr_matrix((J, np.r_[:N], np.r_[:N+1]), \
                               shape=(N*m, (N+1)*m))
-        I = sparse.bsr_matrix((eyeDt, np.r_[1:N+1], np.r_[:N+1]))
+        I = sparse.bsr_matrix((eye, np.r_[1:N+1], np.r_[:N+1]))
     
         self.B = I.tocsr() - L.tocsr()
 
@@ -187,7 +191,8 @@ class Tangent(LSS):
 
         if dfds is None:
             dfds = dds(f)
-        b = dfds(self.uMid, self.s)
+        b = dfds(self.u[:-1], self.s)
+        self.b = b
         assert b.size == S.shape[0]
 
         w = splinalg.spsolve(S, np.ravel(b))
@@ -202,8 +207,8 @@ class Tangent(LSS):
         Jm = J(self.u - EPS * self.v, self.s).mean(0)
         grad1 = (Jp - Jm) / (2*EPS)
 
-        grad2 = dJds(self.uMid, self.s).mean(0)
-        return ravel(grad1 + grad2)
+        grad2 = dJds(self.u, self.s).mean(0)
+        return np.ravel(grad1 + grad2)
 
 
 class Adjoint(LSS):
@@ -232,5 +237,5 @@ class Adjoint(LSS):
         prod = self.wa[:,:,np.newaxis] * dfds(self.uMid, self.s)
         grad1 = prod.sum(0).sum(0)
         grad2 = dJds(self.uMid, self.s).mean(0)
-        return ravel(grad1 + grad2)
+        return np.ravel(grad1 + grad2)
 

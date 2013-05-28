@@ -16,6 +16,7 @@ Use:
 ----
 
 u0 = rand(m)       # initial condition of m-degree-of-freedom system
+
 n0, n = 1000, 1000 # spin-up time and trajectory length
 
 Using tangent sensitivity analysis:
