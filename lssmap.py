@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''This module contains tools for performing tangent sensitivity analysis
+"""This module contains tools for performing tangent sensitivity analysis
 and adjoint sensitivity analysis.  The details are described in our paper
 "A mathematical analysis of the least squares sensitivity method"
 at arXiv
@@ -58,7 +58,7 @@ Using adjoint sensitivity analysis:
         dJds = adj.dJds()
         # you can use the same "adj" for more "s"s
         #     via adj.dJds(dfds, dJds)... See doc for the Adjoint class
-'''
+"""
 
 import numpy as np
 from scipy import sparse
@@ -69,7 +69,7 @@ __all__ = ["ddu", "dds", "Tangent", "Adjoint"]
 
 
 def _block_diag(A):
-    'Construct a block diagonal sparse matrix, A[i,:,:] is the ith block'
+    """Construct a block diagonal sparse matrix, A[i,:,:] is the ith block"""
     assert A.ndim == 3
     n = A.shape[0]
     return sparse.bsr_matrix((A, np.r_[:n], np.r_[:n+1]))
@@ -77,64 +77,80 @@ def _block_diag(A):
 
 EPS = 1E-7
 
+def set_fd_step(eps):
+    """Set step size in ddu and dds classess.
+    set eps=1E-30j for complex derivative method."""
+    assert isinstance(eps, (float, complex))
+    global EPS
+    EPS = eps
+
+
 class ddu(object):
-    '''
-    A callable object that returns the total derivative of a given function f
-    with respect to its first argument
-    '''
+    """Partial derivative of a bivariate function f(u,s)
+    with respect its FIRST argument u
+
+    Usage: print ddu(f)(u,s)
+    Or: dfdu = ddu(f)
+        print dfdu(u,s)
+    """
     def __init__(self, f):
         self.f = f
 
     def __call__(self, u, s):
-        if type(s) is not np.ndarray:
-            s = np.array([s], float)
+        global EPS
         f0 = self.f(u, s)
         assert f0.shape[0] == u.shape[0]
         N = f0.shape[0]
         n, m = f0.size / N, u.shape[1]
         dfdu = np.zeros( (N, n, m) )
+        u = np.asarray(u, type(EPS))
+        s = np.asarray(s, type(EPS))
         for i in range(m):
             u[:,i] += EPS
             fp = self.f(u, s).copy()
             u[:,i] -= EPS * 2
             fm = self.f(u, s).copy()
             u[:,i] += EPS
-            dfdu[:,:,i] = (fp - fm).reshape([N, n]) / (2 * EPS)
+            dfdu[:,:,i] = ((fp - fm).reshape([N, n]) / (2 * EPS)).real
         return dfdu
 
 
 class dds(object):
-    '''
-    A callable object that returns the total derivative of a given function f
-    with respect to its second argument
-    '''
+    """Partial derivative of a bivariate function f(u,s)
+    with respect its SECOND argument s
+
+    Usage: print dds(f)(u,s)
+    Or: dfds = dds(f)
+        print dfds(u,s)
+    """
     def __init__(self, f):
         self.f = f
 
     def __call__(self, u, s):
-        if type(s) is not np.ndarray:
-            s = np.array([s], float)
+        global EPS
         f0 = self.f(u, s)
         assert f0.shape[0] == u.shape[0]
         N = f0.shape[0]
         n, m = f0.size / N, s.size
         dfds = np.zeros( (N, n, m) )
+        u = np.asarray(u, type(EPS))
+        s = np.asarray(s, type(EPS))
         for i in range(m):
             s[i] += EPS
             fp = self.f(u, s).copy()
             s[i] -= EPS * 2
             fm = self.f(u, s).copy()
             s[i] += EPS
-            dfds[:,:,i] = (fp - fm).reshape([N, n]) / (2 * EPS)
+            dfds[:,:,i] = ((fp - fm).reshape([N, n]) / (2 * EPS)).real
         return dfds
 
 
 class LSS(object):
-    '''
+    """
     Base class for both tangent and adjoint sensitivity analysis
     During __init__, a trajectory is computed,
     and the matrices used for both tangent and adjoint are built
-    '''
+    """
     def __init__(self, f, u0, s, n0, n, dfdu=None):
         self.f = f
         self.t = np.arange(n)
@@ -157,12 +173,12 @@ class LSS(object):
         for i in xrange(1, n):
             self.u[i] = f(self.u[i-1], s)
 
-        self.buildSparseMatrices()
-    
-    def buildSparseMatrices(self):
-        '''
-        Building B: the block-bidiagonal matrix
-        '''
+    def Schur(self):
+        """
+        Builds the Schur complement of the KKT system'
+        Also build B: the block-bidiagonal matrix,
+               and E: the dudt matrix
+        """
         N, m = self.u.shape[0] - 1, self.u.shape[1]
 
         J = self.dfdu(self.u[:-1], self.s)
@@ -174,16 +190,24 @@ class LSS(object):
     
         self.B = I.tocsr() - L.tocsr()
 
-    def Schur(self):
-        'Builds the Schur complement of the KKT system'
         return (self.B * self.B.T)
 
     def evaluate(self, J):
-        'Evaluate a time averaged objective function'
+        """Evaluate a time averaged objective function"""
         return J(self.u, self.s).mean(0)
 
 
 class Tangent(LSS):
+    """
+    Tagent(f, u0, s, n0, n, dfds=None, dfdu=None, alpha=10)
+    f: governing equation u_{n+1} = f(u_n, s)
+    u0: initial condition (1d array) or the entire trajectory (2d array)
+    s: parameter
+    n0: number of run up iterations
+    n: number of iterations in the Least Squares Shadowing algorithm (LSS)
+    dfds and dfdu is computed from f if left undefined.
+    alpha: weight of the time dilation term in LSS.
+    """
     def __init__(self, f, u0, s, n0, n, dfds=None, dfdu=None):
         LSS.__init__(self, f, u0, s, n0, n, dfdu)
 
@@ -201,6 +225,8 @@ class Tangent(LSS):
         self.v = v.reshape(self.u.shape)
 
     def dJds(self, J):
+        """Evaluate the derivative of the time averaged objective function to s
+        """
         dJdu, dJds = ddu(J), dds(J)
 
         Jp = J(self.u + EPS * self.v, self.s).mean(0)
@@ -212,6 +238,17 @@ class Tangent(LSS):
 
 
 class Adjoint(LSS):
+    """
+    Adjoint(f, u0, s, n0, n, J, dJdu=None, dfdu=None, alpha=10)
+    f: governing equation du/dt = f(u, s)
+    u0: initial condition (1d array) or the entire trajectory (2d array)
+    s: parameter
+    n0: number of run up iterations
+    n: number of iterations in the Least Squares Shadowing algorithm (LSS)
+    J: objective function. QoI = mean(J(u))
+    dJdu and dfdu is computed from f if left undefined.
+    alpha: weight of the time dilation term in LSS.
+    """
     def __init__(self, f, u0, s, t, J, dJdu=None, dfdu=None):
         LSS.__init__(self, f, u0, s, t, dfdu)
 
@@ -228,7 +265,14 @@ class Adjoint(LSS):
         self.wa = wa.reshape(self.uMid.shape)
         self.J, self.dJdu = J, dJdu
 
+    def evaluate(self):
+        """Evaluate the time averaged objective function"""
+        # return self.J(self.u, self.s).mean(0)
+        return LSS.evaluate(self, self.J)
+
     def dJds(self, dfds=None, dJds=None):
+        """Evaluate the derivative of the time averaged objective function to s
+        """
         if dfds is None:
             dfds = dds(self.f)
         if dJds is None:
