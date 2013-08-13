@@ -65,7 +65,7 @@ from scipy import sparse
 import scipy.sparse.linalg as splinalg
 
 
-__all__ = ["ddu", "dds", "Tangent", "Adjoint"]
+__all__ = ["ddu", "dds", "Tangent", "Adjoint", "set_fd_step"]
 
 
 def _block_diag(A):
@@ -249,8 +249,8 @@ class Adjoint(LSS):
     dJdu and dfdu is computed from f if left undefined.
     alpha: weight of the time dilation term in LSS.
     """
-    def __init__(self, f, u0, s, t, J, dJdu=None, dfdu=None):
-        LSS.__init__(self, f, u0, s, t, dfdu)
+    def __init__(self, f, u0, s, n0, n, J, dJdu=None, dfdu=None):
+        LSS.__init__(self, f, u0, s, n0, n, dfdu)
 
         S = self.Schur()
 
@@ -262,7 +262,7 @@ class Adjoint(LSS):
         b = self.B * np.ravel(g)
         wa = splinalg.spsolve(S, b)
 
-        self.wa = wa.reshape(self.uMid.shape)
+        self.wa = wa.reshape([self.u.shape[0] - 1, self.u.shape[1]])
         self.J, self.dJdu = J, dJdu
 
     def evaluate(self):
@@ -278,8 +278,8 @@ class Adjoint(LSS):
         if dJds is None:
             dJds = dds(self.J)
 
-        prod = self.wa[:,:,np.newaxis] * dfds(self.uMid, self.s)
+        prod = self.wa[:,:,np.newaxis] * dfds(self.u[:-1], self.s)
         grad1 = prod.sum(0).sum(0)
-        grad2 = dJds(self.uMid, self.s).mean(0)
+        grad2 = dJds(self.u[:-1], self.s).mean(0)
         return np.ravel(grad1 + grad2)
 
