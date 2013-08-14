@@ -14,9 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """This module contains tools for performing tangent sensitivity analysis
-and adjoint sensitivity analysis.  The details are described in our paper
-"A mathematical analysis of the least squares sensitivity method"
-at arXiv
+for chaotic maps that defines a hyperbolic attractor.
+The details are described in our paper
+"A Convergence Proof of the Least Squares Shadowing Method for
+Computing Derivative of Ergodic Averages"
 
 User should define two bi-variate functions, f and J
 
@@ -26,7 +27,6 @@ f(u, s) defines a dynamical system u[i+1] = f(u[i],s) parameterized by s
            m-degree-of-freedom discrete dynamical system
         s: parameter of the dynamical system.
            Tangent sensitivity analysis: s must be a scalar.
-           Adjoint sensitivity analysis: s may be a scalar or vector.
         return: u[i+1], should be the same size as u[i].
                 if u.shape == (m,): return a shape (m,) array
                 if u.shape == (N,m): return a shape (N,m) array
@@ -41,10 +41,6 @@ J(u, s) defines the objective function, whose ergodic long time average
                     if u.shape == (m,): return a scalar or vector of shape (n,)
                     if u.shape == (N,m): return a vector of shape (N,)
                                          or vector of shape (N,n)
-                Adjoint sensitivity analysis:
-                    J must return a scalar (single objective).
-                    if u.shape == (m,): return a scalar
-                    if u.shape == (N,m): return a vector of shape (N,)
 
 Using tangent sensitivity analysis:
         u0 = rand(m)       # initial condition of m-degree-of-freedom system
@@ -52,12 +48,6 @@ Using tangent sensitivity analysis:
         tan = Tangent(f, u0, s, n0, n)
         dJds = tan.dJds(J)
         # you can use the same "tan" for more "J"s ...
-
-Using adjoint sensitivity analysis:
-        adj = Adjoint(f, u0, s, n0, n, J)
-        dJds = adj.dJds()
-        # you can use the same "adj" for more "s"s
-        #     via adj.dJds(dfds, dJds)... See doc for the Adjoint class
 """
 
 import numpy as np
@@ -65,7 +55,7 @@ from scipy import sparse
 import scipy.sparse.linalg as splinalg
 
 
-__all__ = ["ddu", "dds", "Tangent", "Adjoint", "set_fd_step"]
+__all__ = ["Tangent", "set_fd_step"]
 
 
 def _block_diag(A):
@@ -224,62 +214,17 @@ class Tangent(LSS):
 
         self.v = v.reshape(self.u.shape)
 
-    def dJds(self, J):
+    def dJds(self, J, n0skip=0, n1skip=0):
         """Evaluate the derivative of the time averaged objective function to s
         """
-        dJdu, dJds = ddu(J), dds(J)
+        pJpu, pJps = ddu(J), dds(J)
 
-        Jp = J(self.u + EPS * self.v, self.s).mean(0)
-        Jm = J(self.u - EPS * self.v, self.s).mean(0)
-        grad1 = (Jp - Jm) / (2*EPS)
+        n0, n1 = n0skip, self.u.shape[0] - n1skip
+        assert n0 < n1
+        u, v = self.u[n0:n1], self.v[n0:n1]
 
-        grad2 = dJds(self.u, self.s).mean(0)
+        grad1 = (pJpu(u, self.s) * v[:,np.newaxis,:]).sum(2).mean(0)
+        grad2 = pJps(u, self.s).mean(0)
         return np.ravel(grad1 + grad2)
 
-
-class Adjoint(LSS):
-    """
-    Adjoint(f, u0, s, n0, n, J, dJdu=None, dfdu=None, alpha=10)
-    f: governing equation du/dt = f(u, s)
-    u0: initial condition (1d array) or the entire trajectory (2d array)
-    s: parameter
-    n0: number of run up iterations
-    n: number of iterations in the Least Squares Shadowing algorithm (LSS)
-    J: objective function. QoI = mean(J(u))
-    dJdu and dfdu is computed from f if left undefined.
-    alpha: weight of the time dilation term in LSS.
-    """
-    def __init__(self, f, u0, s, n0, n, J, dJdu=None, dfdu=None):
-        LSS.__init__(self, f, u0, s, n0, n, dfdu)
-
-        S = self.Schur()
-
-        if dJdu is None:
-            dJdu = ddu(J)
-        g = dJdu(self.u, self.s) / self.u.shape[0]      # multiplier on v
-        assert g.size == self.u.size
-
-        b = self.B * np.ravel(g)
-        wa = splinalg.spsolve(S, b)
-
-        self.wa = wa.reshape([self.u.shape[0] - 1, self.u.shape[1]])
-        self.J, self.dJdu = J, dJdu
-
-    def evaluate(self):
-        """Evaluate the time averaged objective function"""
-        # return self.J(self.u, self.s).mean(0)
-        return LSS.evaluate(self, self.J)
-
-    def dJds(self, dfds=None, dJds=None):
-        """Evaluate the derivative of the time averaged objective function to s
-        """
-        if dfds is None:
-            dfds = dds(self.f)
-        if dJds is None:
-            dJds = dds(self.J)
-
-        prod = self.wa[:,:,np.newaxis] * dfds(self.u[:-1], self.s)
-        grad1 = prod.sum(0).sum(0)
-        grad2 = dJds(self.u[:-1], self.s).mean(0)
-        return np.ravel(grad1 + grad2)
 
