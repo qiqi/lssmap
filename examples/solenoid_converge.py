@@ -32,25 +32,31 @@ def J(u, R):
 
 R = 1.0
 n0, nTruth = 1000, 1000000
-ns = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
+ns = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
 
-# u0 = rand(3); u0[0] += R
-# tan = Tangent(solenoid, u0, R, n0, nTruth)
-# tangent = [tan.dJds(J)]
-tangent = [0.98334097]
+truth = 0.931450
+# +-0.000017 with 3 sigma confidence,
+# from 1117 LSS solutions with n=100000, # each has 20 iterations at beginning
+# and 20 iterations at the end of the trajectory truncated from averaging.
+nrep = 16
 
-print tangent[0]
-sys.stdout.flush()
-
+tangent = []
 for i, n in enumerate(ns):
     print n
-    for j in range(3):
+    for j in range(nrep):
         u0 = rand(3); u0[0] += R
         tan = Tangent(solenoid, u0, R, n0, n)
         tangent.append(tan.dJds(J))
+        print '    ', tangent[-1]
 
-err = array(tangent[1:]).reshape([len(ns), 3]) - tangent[0]
+err = reshape(tangent, [len(ns), nrep]) - truth
 
 figure(figsize=(5,4))
-loglog(ns, abs(err), 'ok')
-grid()
+gcf().add_axes([.2, .2, .7, .7])
+loglog(ns, abs(err).mean(1), 'ok', ms=8)
+plot([10, 10000], [.1, 0.0001], '--k')
+plot([10, 100000], [0.01, 0.0001], ':k')
+xlabel(r'$n$')
+ylabel(r'mean error')
+savefig('solenoid_converge.png')
+savefig('solenoid_converge.eps')
