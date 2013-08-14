@@ -30,7 +30,7 @@ Jval = []
 for R in Rs:
     print R
     n0, n = 100, 10000
-    u = rand(10000, 3); u[:,0] += R
+    u = random.rand(10000, 3); u[:,0] += R
     for i in range(n0):
         u = solenoid(u, R)
     Jval.append(zeros(u.shape[0]))
