@@ -1,17 +1,7 @@
 # Copyright Qiqi Wang (qiqi@mit.edu) 2013
 import sys
 sys.path.append('..')
-import matplotlib
-try: matplotlib.use('Agg')
-except: pass
-
-from pylab import *
 from numpy import *
-
-from scipy.sparse.linalg import spsolve
-from mpl_toolkits.mplot3d import Axes3D
-
-sys.path.append('..')
 from lssmap import *
 
 def solenoid(u, R):

@@ -2,11 +2,6 @@
 import sys
 sys.path.append('..')
 from numpy import *
-
-from scipy.sparse.linalg import spsolve
-from mpl_toolkits.mplot3d import Axes3D
-
-sys.path.append('..')
 from lssmap import *
 
 def solenoid(u, R):
