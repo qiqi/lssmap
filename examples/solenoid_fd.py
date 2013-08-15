@@ -45,21 +45,21 @@ Jmean, Jstd2 = Jval.mean(1), Jval.std(1) / sqrt(Jval.shape[1]) * 2
 savetxt('solenoid_fd.txt', transpose([Jmean, Jstd2]))
 
 # plotting
-Jmean, Jstd2 = loadtxt('solenoid_fd.txt').T
-
-# figure(figsize=(5,4))
-# plot([Rs, Rs], [Jmean + Jstd2, Jmean- Jstd2], '-k', lw=2)
-# grid()
-
-RsMid = 0.5 * (Rs[1:] + Rs[:-1])
-dJmean = (Jmean[1:] - Jmean[:-1]) / (Rs[1:] - Rs[:-1])
-dJstd2 = sqrt(Jstd2[1:]**2 + Jstd2[:-1]**2) / (Rs[1:] - Rs[:-1])
-
-figure(figsize=(6,4))
-plot([RsMid, RsMid], [dJmean + dJstd2, dJmean- dJstd2], '-k', lw=2)
-ylim([0.9, 1])
-grid()
-xlabel(r'$R$')
-ylabel(r'$d\overline{J}/dR$')
-savefig('solenoid_fd.png')
-savefig('solenoid_fd.eps')
+# Jmean, Jstd2 = loadtxt('solenoid_fd.txt').T
+# 
+# # figure(figsize=(5,4))
+# # plot([Rs, Rs], [Jmean + Jstd2, Jmean- Jstd2], '-k', lw=2)
+# # grid()
+# 
+# RsMid = 0.5 * (Rs[1:] + Rs[:-1])
+# dJmean = (Jmean[1:] - Jmean[:-1]) / (Rs[1:] - Rs[:-1])
+# dJstd2 = sqrt(Jstd2[1:]**2 + Jstd2[:-1]**2) / (Rs[1:] - Rs[:-1])
+# 
+# # figure(figsize=(6,4))
+# # plot([RsMid, RsMid], [dJmean + dJstd2, dJmean- dJstd2], '-k', lw=2)
+# # ylim([0.9, 1])
+# # grid()
+# # xlabel(r'$R$')
+# # ylabel(r'$d\overline{J}/dR$')
+# # savefig('solenoid_fd.png')
+# # savefig('solenoid_fd.eps')
