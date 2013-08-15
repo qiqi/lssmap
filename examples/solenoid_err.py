@@ -41,7 +41,7 @@ v0 = tan.u[:,:2] / sqrt((tan.u[:,:2]**2).sum(1))[:,newaxis]
 err = v0 - tan.v[:,:2]
 
 figure(figsize=(6,4))
-semilogy(sqrt((err**2).sum(1)), 'o')
+semilogy(sqrt((err**2).sum(1)), 'ok')
 xlabel(r'$i$')
 ylabel(r'Least squares shadowing error')
 grid()
