@@ -154,13 +154,13 @@ class LSS(object):
         self.dfdu = dfdu
 
         # run up for n0 steps
-        for i in xrange(n0):
+        for i in range(n0):
             u0 = self.f(u0, s)
 
         # compute a trajectory
         self.u = np.zeros([n, u0.size])
         self.u[0] = f(u0, s) 
-        for i in xrange(1, n):
+        for i in range(1, n):
             self.u[i] = f(self.u[i-1], s)
 
     def Schur(self):

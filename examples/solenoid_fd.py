@@ -28,7 +28,7 @@ Rs = linspace(1,3,21)
 
 Jval = []
 for R in Rs:
-    print R
+    print(R)
     n0, n = 100, 10000
     u = random.rand(10000, 3); u[:,0] += R
     for i in range(n0):

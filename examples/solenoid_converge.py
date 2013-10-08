@@ -40,12 +40,12 @@ nrep = 16
 
 tangent = []
 for i, n in enumerate(ns):
-    print n
+    print(n)
     for j in range(nrep):
         u0 = rand(3); u0[0] += R
         tan = Tangent(solenoid, u0, R, n0, n)
         tangent.append(tan.dJds(J))
-        print '    ', tangent[-1]
+        print('    ', tangent[-1])
 
 err = reshape(tangent, [len(ns), nrep]) - truth
 

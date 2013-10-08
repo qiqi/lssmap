@@ -30,5 +30,5 @@ n0, n = 100, 100000
 while True:  # keep writing new lines on solenoid_truth.txt for averaging
     u0 = random.rand(3); u0[0] += R
     tan = Tangent(solenoid, u0, R, n0, n)
-    with file('solenoid_truth.txt', 'at') as f:
+    with open('solenoid_truth.txt', 'at') as f:
         f.write('%24.18f\n' % tan.dJds(J, n0skip=20, n1skip=20))
